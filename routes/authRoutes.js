@@ -33,7 +33,10 @@ router.get("/pending",
 
 router.post('/login', authController.login);
 
-
-
-
+router.delete(
+  "/:id",
+  protect,
+  authorizeRoles("admin"),
+  authController.deleteUser
+);
 module.exports = router;
