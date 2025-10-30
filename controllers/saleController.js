@@ -189,19 +189,20 @@ const getTopStaff = async (req, res) => {
     const now = new Date();
     let start;
 
-    // 🗓️ Determine time range
+    // 🗓️ Define time range
     if (period === "weekly") {
       start = new Date(now);
       start.setDate(now.getDate() - 7);
     } else if (period === "monthly") {
-      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      start = new Date(now);
+      start.setDate(now.getDate() - 30);
     } else if (period === "yearly") {
       start = new Date(now.getFullYear(), 0, 1);
     } else {
       return res.status(400).json({ message: "Invalid period" });
     }
 
-    // 📊 Aggregate top staff within date range
+    // 📊 Aggregate sales totals by staff
     const topStaff = await Sale.aggregate([
       {
         $match: {
@@ -230,9 +231,7 @@ const getTopStaff = async (req, res) => {
         $project: {
           _id: 0,
           staffId: "$user._id",
-          name: {
-            $concat: ["$user.firstName", " ", "$user.lastName"],
-          },
+          name: { $concat: ["$user.firstName", " ", "$user.lastName"] },
           email: "$user.email",
           role: "$user.role",
           totalSales: 1,
@@ -243,6 +242,7 @@ const getTopStaff = async (req, res) => {
 
     res.json({
       period,
+      range: { start, end: now },
       count: topStaff.length,
       topStaff,
     });
@@ -251,7 +251,6 @@ const getTopStaff = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
-
 
 const getTopProducts = async (req, res) => {
   try {
