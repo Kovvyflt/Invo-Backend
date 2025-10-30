@@ -100,13 +100,16 @@ const getSalesReport = async (req, res) => {
       return res.status(400).json({ message: "Invalid or missing report type" });
     }
 
+    // Build query range
     const query = { createdAt: { $gte: start, $lte: end } };
     if (staffId) query.soldBy = staffId;
 
+    // Fetch sales with populated product + user
     const sales = await Sale.find(query)
-      .populate("items.product", "name sku price")
-      .populate("soldBy", "firstname lastname email role");
+      .populate("items.product", "name sku price") // assumes your Products model has these
+      .populate("soldBy", "firstName lastName email role");
 
+    // Flatten out each sale's items into one row per product sold
     const rows = sales.flatMap((sale) =>
       sale.items.map((item) => ({
         productName: item.product?.name || "Unknown",
@@ -114,11 +117,14 @@ const getSalesReport = async (req, res) => {
         quantity: item.quantity,
         priceAtSale: item.priceAtSale,
         total: item.priceAtSale * item.quantity,
-        soldBy: sale.soldBy?.name || "Unknown",
+        soldBy: sale.soldBy
+          ? `${sale.soldBy.firstName} ${sale.soldBy.lastName}`
+          : "Unknown",
         createdAt: sale.createdAt,
       }))
     );
 
+    // Respond with clean, structured data
     res.json({
       filter: type,
       range: { start, end },
@@ -130,7 +136,6 @@ const getSalesReport = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
 
 // ---------------------- REPORT: USER (STAFF) ----------------------
 const getSalesByUser = async (req, res) => {
@@ -196,7 +201,7 @@ const getTopStaff = async (req, res) => {
       return res.status(400).json({ message: "Invalid period" });
     }
 
-    // 📊 Aggregate sales within date range
+    // 📊 Aggregate top staff within date range
     const topStaff = await Sale.aggregate([
       {
         $match: {
@@ -207,7 +212,7 @@ const getTopStaff = async (req, res) => {
         $group: {
           _id: "$soldBy",
           totalSales: { $sum: "$totalAmount" },
-          count: { $sum: 1 },
+          salesCount: { $sum: 1 },
         },
       },
       { $sort: { totalSales: -1 } },
@@ -224,16 +229,21 @@ const getTopStaff = async (req, res) => {
       {
         $project: {
           _id: 0,
-          name: "$user.name",
+          staffId: "$user._id",
+          name: {
+            $concat: ["$user.firstName", " ", "$user.lastName"],
+          },
           email: "$user.email",
+          role: "$user.role",
           totalSales: 1,
-          count: 1,
+          salesCount: 1,
         },
       },
     ]);
 
     res.json({
       period,
+      count: topStaff.length,
       topStaff,
     });
   } catch (err) {
@@ -241,6 +251,7 @@ const getTopStaff = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
 
 const getTopProducts = async (req, res) => {
   try {
