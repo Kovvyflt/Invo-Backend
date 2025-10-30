@@ -105,7 +105,7 @@ const getSalesReport = async (req, res) => {
 
     const sales = await Sale.find(query)
       .populate("items.product", "name sku price")
-      .populate("soldBy", "name email role");
+      .populate("soldBy", "firstname lastname email role");
 
     const rows = sales.flatMap((sale) =>
       sale.items.map((item) => ({
