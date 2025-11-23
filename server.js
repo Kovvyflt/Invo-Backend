@@ -24,6 +24,11 @@ app.get("/", (req, res) => {
   res.send("Inventory & Sales Management API is running...");
 });
 
+app.get("/health", (req, res) => {
+  res.status(200).send("Server is active 🟢");
+});
+
+
 // Import routes
 const productRoutes = require("./routes/productRoute");
 const saleRoutes = require("./routes/saleRoutes");
